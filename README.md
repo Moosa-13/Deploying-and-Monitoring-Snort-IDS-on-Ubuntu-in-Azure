@@ -35,7 +35,7 @@ This project is a hands-on exploration of network security through the deploymen
 The primary focus of this project is on how Snort can be used to detect, log, and prevent various network attacks, such as brute-force SSH attacks, SQL injection, Denial of Service (DoS) attacks, and more.
 
 ---
-
+CRAZY CRAZY
 ## Project Overview
 
 - **Snort IDS Server**: Ubuntu Server running Snort IDS to monitor network traffic.
